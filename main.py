@@ -72,7 +72,7 @@ def main():
             
         # Write mutation to sandbox target
         target_file = "sandbox_target.py"
-        with open(target_file, "w") as f:
+        with open(target_file, "w", encoding="utf-8") as f:
             f.write(code_mutation)
             
         # Execute sandboxed mutation

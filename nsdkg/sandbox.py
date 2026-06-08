@@ -118,7 +118,7 @@ def run_sandboxed(script_path: str, timeout_sec: float = 3.0) -> dict:
                 
         return {
             "success": False,
-            "stdout": e.stdout.decode() if e.stdout else "",
-            "stderr": e.stderr.decode() if e.stderr else "TimeoutError: Execution exceeded 3.0s limit",
+            "stdout": (e.stdout if isinstance(e.stdout, str) else e.stdout.decode()) if e.stdout else "",
+            "stderr": (e.stderr if isinstance(e.stderr, str) else e.stderr.decode()) if e.stderr else f"TimeoutError: Execution exceeded {timeout_sec}s limit",
             "exit_code": -1
         }

@@ -47,12 +47,34 @@ for system tracking, and includes an open-source MIT license header block."""
 class EvolutionAgent:
     def __init__(self, model_name="qwen3.7-max"):
         self.model_name = model_name
+        
+        # Load local .env if it exists and variables aren't already set in environment
+        env_paths = [
+            os.path.join(os.getcwd(), ".env"),
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+        ]
+        for path in env_paths:
+            if os.path.exists(path):
+                try:
+                    with open(path, "r", encoding="utf-8") as f:
+                        for line in f:
+                            line = line.strip()
+                            if line and not line.startswith("#") and "=" in line:
+                                k, v = line.split("=", 1)
+                                k = k.strip()
+                                if k not in os.environ:
+                                    os.environ[k] = v.strip()
+                    break
+                except Exception:
+                    pass
+
         api_key = os.environ.get("QWEN_API_KEY", "dummy-key-for-local-testing")
+        base_url = os.environ.get("DASHSCOPE_BASE_URL") or os.environ.get("QWEN_BASE_URL") or "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
         
         # Configure OpenAI SDK for Qwen API
         self.client = OpenAI(
             api_key=api_key,
-            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"
+            base_url=base_url
         )
         print(f"[COGNITIVE CORE] Initialized Qwen Evolution Agent (Model: {self.model_name})")
 
