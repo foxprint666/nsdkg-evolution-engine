@@ -232,7 +232,12 @@ def get_qwen_mutation(client: OpenAI, codebase: dict, role: str, context: str, e
                 response_format={"type": "json_object"}
             )
             
-            data = json.loads(response.choices[0].message.content)
+            raw_content = response.choices[0].message.content.strip()
+            if raw_content.startswith("```"):
+                cleaned = re.sub(r"^```(?:json)?\n|```$", "", raw_content, flags=re.MULTILINE).strip()
+            else:
+                cleaned = raw_content
+            data = json.loads(cleaned)
             # Add defaults
             if role == "red":
                 data["token_cost_red"] = len(prompt) // 4 + 200
@@ -418,11 +423,16 @@ def colosseum_simulation_tick(env: ColosseumSandboxEnv, client: OpenAI = None, d
 def apply_synaptic_decay_and_pruning(graph: nx.DiGraph, decay_rate: float, time_delta: float, 
                                      blue_failed: bool = False, failed_patch_node: str = "",
                                      red_caught: bool = False, caught_exploit_node: str = "",
-                                     threshold: float = 0.1):
+                                     threshold: float = None):
     """
     Decays edge and node weights.
     Aggressively prunes failed patch strategies or caught exploits immediately.
     """
+    if threshold is None:
+        try:
+            threshold = float(os.environ.get("SYNAPTIC_DECAY_FLOOR", "0.1"))
+        except ValueError:
+            threshold = 0.1
     # 1. Aggressive Pruning of failed patch
     if blue_failed and failed_patch_node in graph:
         print(f"[NSDKG PRUNING] Aggressive Pruning: Blue patch '{failed_patch_node}' failed. Removing node and associated edges.")

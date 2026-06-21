@@ -70,8 +70,10 @@ def main():
             print("[SYSTEM] No code mutation generated. Halting loop.")
             break
             
-        # Write mutation to sandbox target
-        target_file = "sandbox_target.py"
+        # Write mutation to isolated sandbox directory
+        sandbox_dir = "sandbox_tmp"
+        os.makedirs(sandbox_dir, exist_ok=True)
+        target_file = os.path.join(sandbox_dir, "sandbox_target.py")
         with open(target_file, "w", encoding="utf-8") as f:
             f.write(code_mutation)
             
@@ -94,7 +96,7 @@ def main():
             print(result["stdout"])
             
         # Apply synaptic decay at the end of the session loop
-        apply_temporal_decay(db.graph, lambda_val, time_delta=1.0, threshold=0.1)
+        apply_temporal_decay(db.graph, lambda_val, time_delta=1.0)
         
         # Small delay for pacing
         time.sleep(1)
@@ -103,9 +105,17 @@ def main():
     print("Final compressed memory string for next loop:")
     print(db.get_compressed_history())
     
-    # Clean up temp file
-    if os.path.exists("sandbox_target.py"):
-        os.remove("sandbox_target.py")
+    # Clean up temp file and directory
+    if os.path.exists("sandbox_tmp"):
+        try:
+            for root, dirs, files in os.walk("sandbox_tmp", topdown=False):
+                for name in files:
+                    os.remove(os.path.join(root, name))
+                for name in dirs:
+                    os.rmdir(os.path.join(root, name))
+            os.rmdir("sandbox_tmp")
+        except Exception:
+            pass
 
 if __name__ == "__main__":
     main()

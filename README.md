@@ -58,6 +58,8 @@ The dashboard provides a premium dark-mode dashboard for monitoring the Colosseu
 - **Column 2 (Interactive NSDKG Graph Viewer)**: A physics-enabled, real-time visualization of the NetworkX graph using Vis.js. Nodes scale in size and edges in thickness according to their current synaptic decay weights.
 - **Thread-Lock Safety**: All graph updates in the background simulation thread and reads in the Flask routing thread are synchronized with `threading.Lock` to guarantee runtime stability.
 
+![NSDKG Cyber-Colosseum Dashboard](colosseum_dashboard.png)
+
 ---
 
 ## 📦 Installation & Setup

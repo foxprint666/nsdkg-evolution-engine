@@ -54,6 +54,7 @@ def run_sandboxed(script_path: str, timeout_sec: float = 3.0) -> dict:
     print(f"[SANDBOX] Initiating sandboxed execution for {script_path}")
     
     is_windows = platform.system().lower() == "windows"
+    extra_kwargs = {}
     
     if is_windows:
         # Cross-platform fallback: standard subprocess timeouts
@@ -87,7 +88,7 @@ def run_sandboxed(script_path: str, timeout_sec: float = 3.0) -> dict:
             print("[SANDBOX WARNING] bwrap not found in PATH. Falling back to native subprocess.")
             cmd = [sys.executable, script_path]
             
-        preexec = enforce_limits_unix
+        extra_kwargs["start_new_session"] = True
 
     try:
         process = subprocess.run(
@@ -96,7 +97,7 @@ def run_sandboxed(script_path: str, timeout_sec: float = 3.0) -> dict:
             stderr=subprocess.PIPE,
             timeout=timeout_sec,
             text=True,
-            preexec_fn=preexec
+            **extra_kwargs
         )
         print(f"[SANDBOX] Execution completed with exit code {process.returncode}")
         return {
@@ -108,7 +109,7 @@ def run_sandboxed(script_path: str, timeout_sec: float = 3.0) -> dict:
     except subprocess.TimeoutExpired as e:
         print("[SANDBOX CRITICAL] Execution exceeded hard CPU timeout limits.")
         # If running on unix, attempt to clean up process group
-        if not is_windows and preexec is not None:
+        if not is_windows:
             try:
                 import signal
                 if hasattr(e, 'pid') and e.pid:

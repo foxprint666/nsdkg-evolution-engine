@@ -20,6 +20,7 @@
 # SOFTWARE.
 # ==========================================
 
+import os
 import math
 import networkx as nx
 
@@ -84,12 +85,17 @@ def has_active_dependency(graph: nx.DiGraph, node: str, threshold: float) -> boo
             return True
     return False
 
-def apply_temporal_decay(graph: nx.DiGraph, lambda_val: float, time_delta: float, threshold: float = 0.1):
+def apply_temporal_decay(graph: nx.DiGraph, lambda_val: float, time_delta: float, threshold: float = None):
     """
     Simulates biological forgetting by decaying edge and node weights.
     Prunes nodes that fall below the threshold unless they are immutable or have active neighbors.
     """
-    print(f"\n--- [NSDKG SYNAPTIC DECAY] Running Decay Cycle (lambda={lambda_val}, t_delta={time_delta}) ---")
+    if threshold is None:
+        try:
+            threshold = float(os.environ.get("SYNAPTIC_DECAY_FLOOR", "0.1"))
+        except ValueError:
+            threshold = 0.1
+    print(f"\n--- [NSDKG SYNAPTIC DECAY] Running Decay Cycle (lambda={lambda_val}, t_delta={time_delta}, floor={threshold}) ---")
     nodes_to_prune = []
     edges_to_prune = []
     
