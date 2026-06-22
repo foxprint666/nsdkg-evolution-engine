@@ -21,6 +21,7 @@
 # ==========================================
 
 import os
+import sys
 import time
 import threading
 import webbrowser
@@ -107,7 +108,12 @@ HTML_TEMPLATE = """
     <!-- Google Typography -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <!-- Vis.js library -->
-    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/vis-network.min.js"></script>
+    <script type="text/javascript">
+        if (typeof vis === 'undefined') {
+            document.write('<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"><\\/script>');
+        }
+    </script>
     <style>
         :root {
             --bg-color: #0b0f19;
@@ -559,12 +565,23 @@ HTML_TEMPLATE = """
 
     <script>
         let network = null;
-        let nodesDataSet = new vis.DataSet([]);
-        let edgesDataSet = new vis.DataSet([]);
+        let nodesDataSet = null;
+        let edgesDataSet = null;
         let lastLogsCount = 0;
 
         // Initialize Vis Graph
         function initGraph() {
+            if (typeof vis === 'undefined') {
+                console.warn("Vis.js is not loaded. Graph visualization disabled.");
+                const container = document.getElementById('network-graph');
+                container.innerHTML = `<div style="padding: 2rem; color: #ef4444; font-family: sans-serif; text-align: center; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                    <strong style="margin-bottom: 0.5rem; font-size: 1.1rem;">Visualization Offline</strong>
+                    <span style="font-size: 0.85rem; color: var(--text-muted); max-width: 320px; line-height: 1.4;">Failed to load Vis.js library from online CDNs. Terminal logs and system metrics will continue to function normally.</span>
+                </div>`;
+                return;
+            }
+            nodesDataSet = new vis.DataSet([]);
+            edgesDataSet = new vis.DataSet([]);
             const container = document.getElementById('network-graph');
             const data = {
                 nodes: nodesDataSet,
@@ -662,76 +679,78 @@ HTML_TEMPLATE = """
                     logsContainer.scrollTop = logsContainer.scrollHeight;
                 }
 
-                // Sync Graph Nodes
-                const currentNodes = nodesDataSet.get();
-                const newNodesMap = new Map();
-                
-                state.graph.nodes.forEach(node => {
-                    newNodesMap.set(node.id, node);
-                    const size = Math.max(12, Math.min(35, 12 + (node.weight * 20))); // scale node size by decay weight
-                    const colors = getNodeColor(node.type);
+                // Sync Graph Nodes & Edges only if Vis.js loaded successfully
+                if (nodesDataSet && edgesDataSet) {
+                    const currentNodes = nodesDataSet.get();
+                    const newNodesMap = new Map();
                     
-                    if (nodesDataSet.get(node.id)) {
-                        // Update
-                        nodesDataSet.update({
-                            id: node.id,
-                            size: size,
-                            color: colors
-                        });
-                    } else {
-                        // Insert
-                        nodesDataSet.add({
-                            id: node.id,
-                            label: node.id,
-                            size: size,
-                            color: colors,
-                            title: `Type: ${node.type} | Weight: ${node.weight.toFixed(2)}`
-                        });
-                    }
-                });
+                    state.graph.nodes.forEach(node => {
+                        newNodesMap.set(node.id, node);
+                        const size = Math.max(12, Math.min(35, 12 + (node.weight * 20))); // scale node size by decay weight
+                        const colors = getNodeColor(node.type);
+                        
+                        if (nodesDataSet.get(node.id)) {
+                            // Update
+                            nodesDataSet.update({
+                                id: node.id,
+                                size: size,
+                                color: colors
+                            });
+                        } else {
+                            // Insert
+                            nodesDataSet.add({
+                                id: node.id,
+                                label: node.id,
+                                size: size,
+                                color: colors,
+                                title: `Type: ${node.type} | Weight: ${node.weight.toFixed(2)}`
+                            });
+                        }
+                    });
 
-                // Remove nodes that are no longer present in graph (pruned / decayed)
-                currentNodes.forEach(oldNode => {
-                    if (!newNodesMap.has(oldNode.id)) {
-                        nodesDataSet.remove(oldNode.id);
-                    }
-                });
+                    // Remove nodes that are no longer present in graph (pruned / decayed)
+                    currentNodes.forEach(oldNode => {
+                        if (!newNodesMap.has(oldNode.id)) {
+                            nodesDataSet.remove(oldNode.id);
+                        }
+                    });
 
-                // Sync Graph Edges
-                const currentEdges = edgesDataSet.get();
-                const newEdgesMap = new Map();
+                    // Sync Graph Edges
+                    const currentEdges = edgesDataSet.get();
+                    const newEdgesMap = new Map();
 
-                state.graph.edges.forEach(edge => {
-                    const edgeId = `${edge.from}-${edge.to}`;
-                    newEdgesMap.set(edgeId, edge);
-                    
-                    // Edge opacity represented by width/color intensity
-                    const edgeWidth = Math.max(1, Math.min(8, 1 + (edge.weight * 6)));
-                    
-                    if (edgesDataSet.get(edgeId)) {
-                        edgesDataSet.update({
-                            id: edgeId,
-                            width: edgeWidth,
-                            label: edge.relationship
-                        });
-                    } else {
-                        edgesDataSet.add({
-                            id: edgeId,
-                            from: edge.from,
-                            to: edge.to,
-                            label: edge.relationship,
-                            width: edgeWidth
-                        });
-                    }
-                });
+                    state.graph.edges.forEach(edge => {
+                        const edgeId = `${edge.from}-${edge.to}`;
+                        newEdgesMap.set(edgeId, edge);
+                        
+                        // Edge opacity represented by width/color intensity
+                        const edgeWidth = Math.max(1, Math.min(8, 1 + (edge.weight * 6)));
+                        
+                        if (edgesDataSet.get(edgeId)) {
+                            edgesDataSet.update({
+                                id: edgeId,
+                                width: edgeWidth,
+                                label: edge.relationship
+                            });
+                        } else {
+                            edgesDataSet.add({
+                                id: edgeId,
+                                from: edge.from,
+                                to: edge.to,
+                                label: edge.relationship,
+                                width: edgeWidth
+                            });
+                        }
+                    });
 
-                // Remove edges that are no longer present
-                currentEdges.forEach(oldEdge => {
-                    const edgeId = `${oldEdge.from}-${oldEdge.to}`;
-                    if (!newEdgesMap.has(edgeId)) {
-                        edgesDataSet.remove(oldEdge.id);
-                    }
-                });
+                    // Remove edges that are no longer present
+                    currentEdges.forEach(oldEdge => {
+                        const edgeId = `${oldEdge.from}-${oldEdge.to}`;
+                        if (!newEdgesMap.has(edgeId)) {
+                            edgesDataSet.remove(oldEdge.id);
+                        }
+                    });
+                }
 
             } catch (err) {
                 console.error("Error fetching state api:", err);
@@ -794,9 +813,16 @@ def main():
     # Open local browser window after 1.5 seconds delay to allow server initialization
     def open_browser():
         time.sleep(1.5)
+        # Avoid opening browser automatically if running in non-interactive environment (e.g. background task runner)
+        if os.environ.get("NO_BROWSER") or not sys.stdin or not sys.stdin.isatty():
+            print("[SYSTEM] Non-interactive environment detected. Skipping auto-browser launch.")
+            return
         url = "http://127.0.0.1:5000"
         print(f"[SYSTEM] Launching default web browser targeting: {url}")
-        webbrowser.open(url)
+        try:
+            webbrowser.open(url)
+        except Exception as e:
+            print(f"[SYSTEM WARNING] Failed to open browser automatically: {e}")
 
     browser_thread = threading.Thread(target=open_browser)
     browser_thread.start()
